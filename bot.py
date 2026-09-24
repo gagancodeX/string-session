@@ -38,7 +38,16 @@ def cancel_keyboard():
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
     await update.effective_message.reply_text(
-        "👋 Welcome! String Session Bot is online.",
+        "👋 Welcome to String Session Bot!\n\n"
+        "🔐 Generate a Telegram String Session for your own account "
+        "quickly and securely.\n\n"
+        "✨ What you can do:\n"
+        "• Generate a String Session\n"
+        "• Secure OTP + 2FA login flow\n"
+        "• Simple and easy-to-use interface\n\n"
+        "⚠️ Never share your OTP, 2FA password, or generated session "
+        "string with anyone.\n\n"
+        "👇 Choose an option below to get started.",
         reply_markup=home_keyboard(),
     )
 
