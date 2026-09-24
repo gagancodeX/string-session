@@ -58,9 +58,6 @@ async def wizard(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 session = await export(uid)
                 await clear(uid)
                 context.user_data.clear()
-                session = await export(uid)
-                await clear(uid)
-                context.user_data.clear()
                 await message.reply_text(
                     "✅ Session generated. Keep it private.\\n\\n" + f"<code>{session}</code>",
                     parse_mode="HTML",
