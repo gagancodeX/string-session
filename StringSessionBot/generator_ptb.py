@@ -88,5 +88,5 @@ async def wizard(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def register_generator(application):
     application.add_handler(
-        MessageHandler(filters.PRIVATE & filters.TEXT & ~filters.COMMAND, wizard)
+        MessageHandler(filters.TEXT & ~filters.COMMAND, wizard)
     )
