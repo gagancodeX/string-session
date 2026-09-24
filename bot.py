@@ -1,6 +1,10 @@
 import asyncio
 import logging
+import os
+
+from aiohttp import web
 from pyrogram import Client, filters
+
 from env import API_ID, API_HASH, BOT_TOKEN, MUST_JOIN
 from StringSessionBot.basic import home, join_button
 from StringSessionBot.bot_users import touch_user
@@ -11,7 +15,12 @@ from StringSessionBot.must_join import is_joined
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
-app = Client("string-session-bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
+app = Client(
+    "string-session-bot",
+    api_id=API_ID,
+    api_hash=API_HASH,
+    bot_token=BOT_TOKEN,
+)
 
 async def allowed(message):
     if not MUST_JOIN:
@@ -44,13 +53,31 @@ async def help_cmd(_, message):
 register_callbacks(app, allowed)
 register_generator(app, allowed)
 
+async def health(request):
+    return web.Response(text="String Session Bot is running.")
+
+async def run_web_server():
+    port = int(os.getenv("PORT", "10000"))
+    server = web.Application()
+    server.router.add_get("/", health)
+    server.router.add_get("/health", health)
+
+    runner = web.AppRunner(server)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+    log.info("Health server listening on port %s", port)
+    return runner
+
 async def main():
+    runner = await run_web_server()
     await app.start()
-    log.info("Bot started")
+    log.info("Telegram bot started")
     try:
         await asyncio.Event().wait()
     finally:
         await app.stop()
+        await runner.cleanup()
 
 if __name__ == "__main__":
     asyncio.run(main())
