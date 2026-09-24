@@ -2,6 +2,13 @@ import asyncio
 import logging
 import os
 
+# Pyrogram 2.0.106 expects a current asyncio event loop during import.
+# Create one explicitly for modern Python versions.
+try:
+    asyncio.get_event_loop()
+except RuntimeError:
+    asyncio.set_event_loop(asyncio.new_event_loop())
+
 from aiohttp import web
 from pyrogram import Client, filters
 
