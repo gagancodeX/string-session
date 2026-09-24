@@ -29,6 +29,8 @@ app = Client(
     api_id=API_ID,
     api_hash=API_HASH,
     bot_token=BOT_TOKEN,
+    workers=4,
+    no_updates=False,
 )
 
 async def allowed(message):
@@ -42,13 +44,17 @@ async def allowed(message):
     )
     return False
 
+@app.on_raw_update()
+async def raw_update(_, update, users, chats):
+    log.debug("Telegram raw update received: %s", type(update).__name__)
+
 @app.on_message(filters.private & filters.incoming)
 async def debug_incoming(_, message):
-    text = message.text or message.caption or "<non-text>"
+    incoming_text = message.text or message.caption or "<non-text>"
     log.info(
         "Incoming private update: user_id=%s text=%r",
         message.from_user.id if message.from_user else None,
-        text[:100],
+        incoming_text[:100],
     )
 
 @app.on_message(filters.command("start"))
@@ -100,10 +106,11 @@ async def main():
     await app.start()
     me = await app.get_me()
     log.info(
-        "Telegram bot started: @%s (id=%s) bot=%s",
+        "Telegram bot started: @%s (id=%s) bot=%s updates=%s",
         me.username,
         me.id,
         me.is_bot,
+        not app.no_updates,
     )
     try:
         await asyncio.Event().wait()
