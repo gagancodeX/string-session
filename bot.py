@@ -3,7 +3,6 @@ import logging
 import os
 
 # Pyrogram 2.0.106 expects a current asyncio event loop during import.
-# Create one explicitly for modern Python versions.
 try:
     asyncio.get_event_loop()
 except RuntimeError:
@@ -19,7 +18,10 @@ from StringSessionBot.callbacks import register_callbacks
 from StringSessionBot.generate import register_generator
 from StringSessionBot.must_join import is_joined
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
 log = logging.getLogger(__name__)
 
 app = Client(
@@ -42,16 +44,26 @@ async def allowed(message):
 
 @app.on_message(filters.command("start"))
 async def start(_, message):
-    await touch_user(message.from_user)
+    log.info("Received /start from user_id=%s", message.from_user.id)
+
     if not await allowed(message):
         return
+
+    # Reply first. MongoDB is optional and must never prevent the bot
+    # from answering Telegram messages.
     await message.reply_text(
         "👋 Welcome! This bot generates a Telegram String Session for your own account.",
         reply_markup=home()
     )
 
+    try:
+        await touch_user(message.from_user)
+    except Exception:
+        log.exception("MongoDB user tracking failed; Telegram reply was already sent.")
+
 @app.on_message(filters.command("help"))
 async def help_cmd(_, message):
+    log.info("Received /help from user_id=%s", message.from_user.id)
     await message.reply_text(
         "/start - Home\n/generate - Generate a session\n/help - Help\n\n"
         "Keep generated session credentials private."
@@ -79,7 +91,8 @@ async def run_web_server():
 async def main():
     runner = await run_web_server()
     await app.start()
-    log.info("Telegram bot started")
+    me = await app.get_me()
+    log.info("Telegram bot started: @%s (id=%s)", me.username, me.id)
     try:
         await asyncio.Event().wait()
     finally:
