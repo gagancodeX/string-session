@@ -42,6 +42,15 @@ async def allowed(message):
     )
     return False
 
+@app.on_message(filters.private & filters.incoming)
+async def debug_incoming(_, message):
+    text = message.text or message.caption or "<non-text>"
+    log.info(
+        "Incoming private update: user_id=%s text=%r",
+        message.from_user.id if message.from_user else None,
+        text[:100],
+    )
+
 @app.on_message(filters.command("start"))
 async def start(_, message):
     log.info("Received /start from user_id=%s", message.from_user.id)
@@ -49,8 +58,6 @@ async def start(_, message):
     if not await allowed(message):
         return
 
-    # Reply first. MongoDB is optional and must never prevent the bot
-    # from answering Telegram messages.
     await message.reply_text(
         "👋 Welcome! This bot generates a Telegram String Session for your own account.",
         reply_markup=home()
@@ -92,7 +99,12 @@ async def main():
     runner = await run_web_server()
     await app.start()
     me = await app.get_me()
-    log.info("Telegram bot started: @%s (id=%s)", me.username, me.id)
+    log.info(
+        "Telegram bot started: @%s (id=%s) bot=%s",
+        me.username,
+        me.id,
+        me.is_bot,
+    )
     try:
         await asyncio.Event().wait()
     finally:
