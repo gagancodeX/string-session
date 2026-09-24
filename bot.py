@@ -2,121 +2,64 @@ import asyncio
 import logging
 import os
 
-# Pyrogram 2.0.106 expects a current asyncio event loop during import.
-try:
-    asyncio.get_event_loop()
-except RuntimeError:
-    asyncio.set_event_loop(asyncio.new_event_loop())
-
 from aiohttp import web
-from pyrogram import Client, filters
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
-from env import API_ID, API_HASH, BOT_TOKEN, MUST_JOIN
-from StringSessionBot.basic import home, join_button
-from StringSessionBot.bot_users import touch_user
-from StringSessionBot.callbacks import register_callbacks
-from StringSessionBot.generate import register_generator
-from StringSessionBot.must_join import is_joined
+from env import BOT_TOKEN
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-)
-log = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+log = logging.getLogger("string-session-bot")
 
-app = Client(
-    "string-session-bot",
-    api_id=API_ID,
-    api_hash=API_HASH,
-    bot_token=BOT_TOKEN,
-    workers=4,
-    no_updates=False,
-)
 
-async def allowed(message):
-    if not MUST_JOIN:
-        return True
-    if await is_joined(app, message.from_user.id, MUST_JOIN):
-        return True
-    await message.reply_text(
-        "🔒 Join the required channel first.",
-        reply_markup=join_button(MUST_JOIN)
-    )
-    return False
-
-@app.on_raw_update()
-async def raw_update(_, update, users, chats):
-    log.debug("Telegram raw update received: %s", type(update).__name__)
-
-@app.on_message(filters.private & filters.incoming)
-async def debug_incoming(_, message):
-    incoming_text = message.text or message.caption or "<non-text>"
-    log.info(
-        "Incoming private update: user_id=%s text=%r",
-        message.from_user.id if message.from_user else None,
-        incoming_text[:100],
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.effective_message.reply_text(
+        "👋 Bot is working!\n\nUse /generate to start the session generator."
     )
 
-@app.on_message(filters.command("start"))
-async def start(_, message):
-    log.info("Received /start from user_id=%s", message.from_user.id)
 
-    if not await allowed(message):
-        return
-
-    await message.reply_text(
-        "👋 Welcome! This bot generates a Telegram String Session for your own account.",
-        reply_markup=home()
+async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.effective_message.reply_text(
+        "/start - Home\n/generate - Generate a session\n/help - Help"
     )
 
-    try:
-        await touch_user(message.from_user)
-    except Exception:
-        log.exception("MongoDB user tracking failed; Telegram reply was already sent.")
-
-@app.on_message(filters.command("help"))
-async def help_cmd(_, message):
-    log.info("Received /help from user_id=%s", message.from_user.id)
-    await message.reply_text(
-        "/start - Home\n/generate - Generate a session\n/help - Help\n\n"
-        "Keep generated session credentials private."
-    )
-
-register_callbacks(app, allowed)
-register_generator(app, allowed)
 
 async def health(request):
     return web.Response(text="String Session Bot is running.")
 
-async def run_web_server():
-    port = int(os.getenv("PORT", "10000"))
-    server = web.Application()
-    server.router.add_get("/", health)
-    server.router.add_get("/health", health)
-
-    runner = web.AppRunner(server)
-    await runner.setup()
-    site = web.TCPSite(runner, "0.0.0.0", port)
-    await site.start()
-    log.info("Health server listening on port %s", port)
-    return runner
 
 async def main():
-    runner = await run_web_server()
-    await app.start()
-    me = await app.get_me()
-    log.info(
-        "Telegram bot started: @%s (id=%s) bot=%s updates=%s",
-        me.username,
-        me.id,
-        me.is_bot,
-        not app.no_updates,
-    )
+    port = int(os.getenv("PORT", "10000"))
+
+    web_app = web.Application()
+    web_app.router.add_get("/", health)
+    web_app.router.add_get("/health", health)
+
+    runner = web.AppRunner(web_app)
+    await runner.setup()
+    await web.TCPSite(runner, "0.0.0.0", port).start()
+    log.info("Health server listening on port %s", port)
+
+    application = ApplicationBuilder().token(BOT_TOKEN).build()
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("help", help_cmd))
+
+    await application.initialize()
+    me = await application.bot.get_me()
+    log.info("Bot API connected: @%s (id=%s)", me.username, me.id)
+
+    await application.start()
+    await application.updater.start_polling(drop_pending_updates=True)
+    log.info("Telegram Bot API polling started successfully.")
+
     try:
         await asyncio.Event().wait()
     finally:
-        await app.stop()
+        await application.updater.stop()
+        await application.stop()
+        await application.shutdown()
         await runner.cleanup()
+
 
 if __name__ == "__main__":
     asyncio.run(main())
