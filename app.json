@@ -1,0 +1,13 @@
+{
+  "name": "String Session Bot",
+  "description": "Telegram String Session Generator",
+  "repository": "https://github.com/gagancodeX/string-session",
+  "keywords": ["telegram", "pyrogram", "string-session"],
+  "env": {
+    "API_ID": {"description": "Telegram API ID", "required": true},
+    "API_HASH": {"description": "Telegram API Hash", "required": true},
+    "BOT_TOKEN": {"description": "Bot token from BotFather", "required": true},
+    "DATABASE_URL": {"description": "Optional PostgreSQL URL", "required": false},
+    "MUST_JOIN": {"description": "Optional channel username", "required": false}
+  }
+}
