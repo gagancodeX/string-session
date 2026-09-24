@@ -5,16 +5,16 @@ An independently implemented Pyrogram Telegram String Session Generator.
 ## Features
 - /start, /generate, /help
 - Optional MUST_JOIN
-- Optional PostgreSQL via DATABASE_URL
+- Optional MongoDB for basic bot-user metadata
 - In-memory Telegram login flow
-- Generated session strings are not stored in the database
+- Generated session strings are not stored in MongoDB
 - Render/Heroku-style worker support
 
 ## Environment
 API_ID=
 API_HASH=
 BOT_TOKEN=
-DATABASE_URL=
+MONGODB_URI=
 MUST_JOIN=
 
 Never commit real secrets or generated session strings.

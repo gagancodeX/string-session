@@ -1,33 +1,30 @@
-import asyncpg
-from env import DATABASE_URL
+from datetime import datetime, timezone
+from pymongo import MongoClient
+from env import MONGODB_URI
 
-_pool = None
+_client = None
+_db = None
 
-async def get_pool():
-    global _pool
-    if not DATABASE_URL:
+def get_database():
+    global _client, _db
+    if not MONGODB_URI:
         return None
-    if _pool is None:
-        _pool = await asyncpg.create_pool(DATABASE_URL, min_size=1, max_size=3)
-        async with _pool.acquire() as conn:
-            await conn.execute('''
-                CREATE TABLE IF NOT EXISTS bot_users (
-                    user_id BIGINT PRIMARY KEY,
-                    username TEXT,
-                    first_seen TIMESTAMPTZ DEFAULT NOW(),
-                    last_seen TIMESTAMPTZ DEFAULT NOW()
-                )
-            ''')
-    return _pool
+    if _db is None:
+        _client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=5000)
+        _db = _client.get_default_database()
+        _db.bot_users.create_index("user_id", unique=True)
+    return _db
 
 async def record_user(user_id, username):
-    pool = await get_pool()
-    if not pool:
+    database = get_database()
+    if database is None:
         return
-    async with pool.acquire() as conn:
-        await conn.execute('''
-            INSERT INTO bot_users(user_id, username)
-            VALUES($1,$2)
-            ON CONFLICT(user_id) DO UPDATE SET
-              username=EXCLUDED.username, last_seen=NOW()
-        ''', user_id, username)
+    now = datetime.now(timezone.utc)
+    database.bot_users.update_one(
+        {"user_id": user_id},
+        {
+            "$set": {"username": username, "last_seen": now},
+            "$setOnInsert": {"first_seen": now},
+        },
+        upsert=True,
+    )

@@ -1,15 +1,7 @@
-from StringSessionBot.database.store import get_pool
+from StringSessionBot.database.store import get_database
 
-async def init_database():
-    pool = await get_pool()
-    if not pool:
+def init_database():
+    database = get_database()
+    if database is None:
         return
-    async with pool.acquire() as conn:
-        await conn.execute('''
-            CREATE TABLE IF NOT EXISTS bot_users (
-                user_id BIGINT PRIMARY KEY,
-                username TEXT,
-                first_seen TIMESTAMPTZ DEFAULT NOW(),
-                last_seen TIMESTAMPTZ DEFAULT NOW()
-            )
-        ''')
+    database.bot_users.create_index("user_id", unique=True)

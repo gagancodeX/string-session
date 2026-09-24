@@ -12,5 +12,5 @@ def required(name):
 API_ID = int(required("API_ID"))
 API_HASH = required("API_HASH")
 BOT_TOKEN = required("BOT_TOKEN")
-DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
+MONGODB_URI = os.getenv("MONGODB_URI", "").strip()
 MUST_JOIN = os.getenv("MUST_JOIN", "").strip()
